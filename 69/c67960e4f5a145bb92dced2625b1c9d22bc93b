@@ -1,0 +1,49 @@
+.vscode/tasks.json
+  s_aa12423d0d4c34::t_655ec03f1c5cc3 1-24
+alipay.svg
+  s_aa12423d0d4c34::t_89f1cee3ec66fc 1
+android-app/app/src/main/assets/alipay.svg
+  s_aa12423d0d4c34::t_e1ae2338cc7f77 1
+android-app/app/src/main/assets/app.js
+  s_aa12423d0d4c34::t_665d6150a48e0a 1-2148
+android-app/app/src/main/assets/icon.svg
+  s_aa12423d0d4c34::t_6e9068b40e2ca4 1-6
+android-app/app/src/main/assets/index.html
+  s_aa12423d0d4c34::t_53c0de2c3be8a3 1-702
+android-app/app/src/main/assets/manifest.webmanifest
+  s_aa12423d0d4c34::t_13add65323f48c 1-18
+android-app/app/src/main/assets/service-worker.js
+  s_76175f96bee010::t_73f8b528b678c7 1-45
+android-app/app/src/main/assets/styles.css
+  s_aa12423d0d4c34::t_a3cb4f0b2d14e5 1-6249
+android-app/app/src/main/assets/wechat.svg
+  s_aa12423d0d4c34::t_28d3339130686a 1
+build-android.ps1
+  s_aa12423d0d4c34::t_6e13e2b0694059 1-32
+wechat.svg
+  s_aa12423d0d4c34::t_d43d36d0d3ffde 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "69c67960e4f5a145bb92dced2625b1c9d22bc93b",
+  "prompts": {},
+  "sessions": {
+    "s_76175f96bee010": {
+      "agent_id": {
+        "tool": "workbuddy",
+        "id": "d05856b8-85ff-4fad-84d3-6f80a832291c",
+        "model": "kimi-k3.1-pro"
+      },
+      "human_author": "xiaoli <762674784@qq.com>"
+    },
+    "s_aa12423d0d4c34": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17d5b-4c32-7dd0-b2e7-d018ea5cf59b",
+        "model": "deepseek-flash"
+      },
+      "human_author": "xiaoli <762674784@qq.com>"
+    }
+  }
+}
