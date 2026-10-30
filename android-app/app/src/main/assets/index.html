@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#edf0ea" />
+    <meta
+      name="description"
+      content="日迹账本：记录微信、支付宝、银行卡等渠道的每日收入与支出。"
+    />
+    <title>日迹账本</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="日迹账本首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M9 6.5h14a3.5 3.5 0 0 1 3.5 3.5v12a3.5 3.5 0 0 1-3.5 3.5H9A3.5 3.5 0 0 1 5.5 22V10A3.5 3.5 0 0 1 9 6.5Z" />
+              <path d="M10.5 12h11M10.5 16h5M10.5 20h8" />
+            </svg>
+          </span>
+          <span>
+            <strong>日迹账本</strong>
+            <small>每一笔，都有迹可循</small>
+          </span>
+        </a>
+
+        <nav class="desktop-nav" aria-label="桌面主导航">
+          <button class="desktop-nav-item nav-item active" type="button" data-view="overview">
+            <span>总览</span>
+            <small>Overview</small>
+          </button>
+          <button class="desktop-nav-item nav-item" type="button" data-view="records">
+            <span>明细</span>
+            <small>Ledger</small>
+          </button>
+          <button class="desktop-nav-item nav-item" type="button" data-view="analytics">
+            <span>分析</span>
+            <small>Analysis</small>
+          </button>
+        </nav>
+
+        <div class="topbar-actions">
+          <span class="topbar-date" id="topbarDate">10 月 28 日 · 周三</span>
+          <span class="privacy-chip"><i></i> LOCAL-FIRST</span>
+          <button class="icon-button" id="exportButton" type="button" aria-label="导出 CSV" title="导出 CSV">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+            </svg>
+          </button>
+          <button class="avatar" type="button" id="profileButton" aria-label="打开数据管理">我</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-view dashboard-view is-active" id="dashboardView">
+          <section class="hero">
+            <div class="hero-copy">
+              <div class="hero-overline">
+                <p class="eyebrow"><span class="status-dot"></span> 今日财务概览</p>
+                <span class="hero-edition">DAILY LEDGER · <b id="heroPeriod">2026 / 10</b></span>
+              </div>
+              <h1>今日账目<span class="title-period">.</span></h1>
+              <p class="hero-description" id="todayLabel">认真记录，轻松掌握每一天的收支。</p>
+            </div>
+            <div class="hero-side">
+              <button class="primary-button hero-add" id="quickAddButton" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                记一笔
+              </button>
+            </div>
+          </section>
+
+          <section class="daily-summary" aria-label="今日收支概览">
+            <div class="daily-summary-head">
+              <p>今日结余</p>
+              <span id="todayDateBadge">10 月 28 日</span>
+            </div>
+            <div class="balance-row">
+              <span class="currency">¥</span>
+              <strong id="todayBalance">0.00</strong>
+            </div>
+            <div class="daily-metrics">
+              <div><span>今日收入</span><strong id="todayIncome">¥0.00</strong></div>
+              <div><span>今日支出</span><strong id="todayExpense">¥0.00</strong></div>
+              <div><span>记录笔数</span><strong id="todayCount">0 笔</strong></div>
+            </div>
+          </section>
+
+          <section class="today-section" aria-labelledby="todayRecordsTitle">
+            <div class="section-heading">
+              <div class="title-with-count">
+                <h2 id="todayRecordsTitle">今日明细</h2>
+                <span class="record-count" id="todayRecordCount">0 笔</span>
+              </div>
+              <div class="today-actions">
+                <button class="text-button" id="todayManualAddButton" type="button">手动记账</button>
+                <button class="text-button" id="viewAllButton" type="button">
+                  全部记录
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5" /></svg>
+                </button>
+              </div>
+            </div>
+            <div id="todayRecordsList" class="records-list today-records" aria-live="polite"></div>
+          </section>
+
+          <section class="trend-panel daily-trend" aria-labelledby="dailyTrendTitle">
+            <div class="panel-title-row">
+              <div>
+                <p class="section-kicker">DAILY ACTIVITY</p>
+                <h2 id="dailyTrendTitle">每日收支趋势</h2>
+              </div>
+              <div class="legend" aria-label="图表图例">
+                <span><i class="legend-dot income-dot"></i>收入</span>
+                <span><i class="legend-dot expense-dot"></i>支出</span>
+              </div>
+            </div>
+            <div class="chart" id="trendChart" role="img" aria-label="近七日每日收支趋势图"></div>
+            <div class="trend-foot">
+              <span>最近 7 天</span>
+              <span id="weeklyExpense">7 日支出 ¥0.00</span>
+            </div>
+          </section>
+        </section>
+
+        <section class="page-view records-view" id="recordsView" hidden>
+          <section class="records-section" aria-labelledby="recordsTitle">
+            <div class="page-heading">
+              <div>
+                <p class="section-kicker">ALL TRANSACTIONS</p>
+                <div class="title-with-count">
+                  <h1 id="recordsTitle">全部明细</h1>
+                  <span class="record-count" id="recordCount">0 笔</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="filter-bar">
+              <label class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" />
+                </svg>
+                <span class="sr-only">搜索记录</span>
+                <input id="searchInput" type="search" placeholder="搜索备注、分类或渠道" autocomplete="off" />
+              </label>
+              <label class="select-wrap">
+                <span class="sr-only">筛选支付渠道</span>
+                <select id="channelFilter">
+                  <option value="all">全部渠道</option>
+                </select>
+              </label>
+            </div>
+            <div id="recordsList" class="records-list" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <section class="page-view analytics-view" id="analyticsView" hidden>
+          <div class="page-heading analytics-heading">
+            <div>
+              <p class="section-kicker">ANALYSIS</p>
+              <h1>收支分析</h1>
+              <p class="analysis-period-label" id="analysisPeriodLabel"></p>
+            </div>
+            <div class="analysis-controls">
+              <div class="period-switch" role="group" aria-label="分析周期">
+                <button class="active" type="button" data-period="week">本周</button>
+                <button type="button" data-period="month">本月</button>
+              </div>
+              <button class="month-button" id="monthButton" type="button" aria-label="选择月份" hidden>
+                <span id="monthLabel">本月</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <section class="analysis-summary" aria-label="周期收支汇总">
+            <div class="analysis-primary">
+              <p>支出合计</p>
+              <strong id="analysisExpense">¥0.00</strong>
+            </div>
+            <div class="analysis-metrics">
+              <div><span>收入</span><strong id="analysisIncome">¥0.00</strong></div>
+              <div><span>结余</span><strong id="analysisBalance">¥0.00</strong></div>
+              <div><span>日均支出</span><strong id="averageDailyExpense">¥0.00</strong></div>
+              <div><span>记账天数</span><strong id="activeDays">0 天</strong></div>
+            </div>
+          </section>
+
+          <section class="trend-panel analysis-trend" aria-labelledby="analysisTrendTitle">
+            <div class="panel-title-row">
+              <div>
+                <p class="section-kicker">INCOME & EXPENSE</p>
+                <h2 id="analysisTrendTitle">周度趋势</h2>
+              </div>
+              <div class="legend" aria-label="图表图例">
+                <span><i class="legend-dot income-dot"></i>收入</span>
+                <span><i class="legend-dot expense-dot"></i>支出</span>
+              </div>
+            </div>
+            <div class="chart analysis-chart" id="analysisChart" role="img" aria-label="周期性收支趋势图"></div>
+          </section>
+
+          <div class="analysis-details">
+            <section class="channel-panel" aria-labelledby="channelTitle">
+              <div class="panel-title-row">
+                <div>
+                  <p class="section-kicker">PAYMENT CHANNELS</p>
+                  <h2 id="channelTitle">支出渠道</h2>
+                </div>
+                <span class="mini-badge" id="channelPeriodLabel">本周</span>
+              </div>
+              <div class="donut-layout">
+                <div class="donut" id="channelDonut" role="img" aria-label="支出渠道占比">
+                  <div class="donut-center">
+                    <span>共支出</span>
+                    <strong id="donutTotal">¥0</strong>
+                  </div>
+                </div>
+                <div class="channel-legend" id="channelLegend"></div>
+              </div>
+            </section>
+
+            <section class="insight-card">
+              <p class="section-kicker">INSIGHT</p>
+              <p id="insightText">开始记录后，这里会显示周期内的消费洞察。</p>
+              <button class="insight-link" id="insightAction" type="button">记下第一笔</button>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-item active" type="button" data-view="overview">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 10.5 12 4l8 6.5V20h-5v-6H9v6H4v-9.5Z" />
+          </svg>
+          <span>总览</span>
+        </button>
+        <button class="nav-item" type="button" data-view="records">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3.5h12a2 2 0 0 1 2 2v15l-4-2.5-4 2.5-4-2.5-4 2.5v-15a2 2 0 0 1 2-2Z" />
+            <path d="M8 8h8M8 12h6" />
+          </svg>
+          <span>明细</span>
+        </button>
+        <button class="nav-add" id="navVoiceButton" type="button" aria-label="语音记账">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+          </svg>
+        </button>
+        <button class="nav-item" type="button" data-view="analytics">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />
+          </svg>
+          <span>分析</span>
+        </button>
+        <button class="nav-item" id="navProfileButton" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5" />
+          </svg>
+          <span>数据</span>
+        </button>
+      </nav>
+
+      <div class="voice-hold-hud" id="voiceHoldHud" hidden aria-live="polite">
+        <span class="voice-hold-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+          </svg>
+        </span>
+        <span class="voice-hold-copy">
+          <strong id="voiceHoldTitle">正在接听…</strong>
+          <small id="voiceHoldTranscript">按住说话，松开结束</small>
+        </span>
+        <span class="voice-hold-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </div>
+
+    <dialog class="record-dialog" id="recordDialog">
+      <form id="recordForm" method="dialog" novalidate>
+        <div class="dialog-handle" aria-hidden="true"></div>
+        <div class="dialog-head">
+          <div>
+            <p class="section-kicker">NEW RECORD</p>
+            <h2 id="dialogTitle">记一笔</h2>
+          </div>
+          <button class="icon-button dialog-close" id="closeDialogButton" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <input type="hidden" id="recordId" />
+        <div class="type-switch" role="group" aria-label="收支类型">
+          <button class="active expense" type="button" data-type="expense">支出</button>
+          <button type="button" data-type="income">收入</button>
+        </div>
+        <input type="hidden" id="recordType" value="expense" />
+
+        <label class="amount-field">
+          <span>金额</span>
+          <div>
+            <span>¥</span>
+            <input
+              id="amountInput"
+              type="number"
+              inputmode="decimal"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </label>
+        <p class="field-error" id="amountError" aria-live="polite"></p>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>日期</span>
+            <input id="dateInput" type="date" required />
+          </label>
+          <label class="field">
+            <span>支付渠道</span>
+            <select id="channelInput" required></select>
+          </label>
+        </div>
+
+        <fieldset class="field category-field">
+          <legend>分类</legend>
+          <div class="category-options" id="categoryOptions"></div>
+          <input type="hidden" id="categoryInput" value="餐饮" />
+        </fieldset>
+
+        <label class="field full-field">
+          <span>备注 <small>选填</small></span>
+          <input id="noteInput" type="text" maxlength="40" placeholder="例如：和朋友吃午饭" />
+        </label>
+
+        <div class="dialog-actions">
+          <button class="delete-record-button" id="deleteRecordButton" type="button" hidden>删除</button>
+          <button class="secondary-button" id="cancelButton" type="button">取消</button>
+          <button class="primary-button save-button" type="submit">
+            <span>保存记录</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7" /></svg>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="month-dialog" id="monthDialog">
+      <form method="dialog">
+        <div class="dialog-head">
+          <div>
+            <p class="section-kicker">SELECT MONTH</p>
+            <h2>选择月份</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <div class="month-picker-grid">
+          <label class="field">
+            <span>年份</span>
+            <select id="yearSelect"></select>
+          </label>
+          <label class="field">
+            <span>月份</span>
+            <select id="monthSelect"></select>
+          </label>
+        </div>
+        <button class="primary-button dialog-confirm" id="confirmMonthButton" type="submit">查看这个月</button>
+      </form>
+    </dialog>
+
+    <dialog class="manage-dialog" id="manageDialog">
+      <div class="dialog-head">
+        <div>
+          <p class="section-kicker">YOUR DATA</p>
+          <h2>数据管理</h2>
+        </div>
+        <button class="icon-button" id="closeManageButton" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <div class="manage-stats">
+        <div><strong id="totalRecordCount">0</strong><span>全部记录</span></div>
+        <div><strong id="storageState">本地</strong><span>存储方式</span></div>
+      </div>
+      <section class="native-permission-panel" id="nativePermissionPanel" hidden>
+        <div class="native-permission-head">
+          <div>
+            <p class="section-kicker">ANDROID AUTO CAPTURE</p>
+            <h3>自动记账权限</h3>
+          </div>
+          <span class="permission-pill" id="permissionPill">未开启</span>
+        </div>
+        <p class="native-permission-note">
+          自动识别默认在本机完成。只有主动开启 AI 后，低置信度通知才会通过 HTTPS 发送到所选模型服务。
+        </p>
+        <div class="permission-row">
+          <span class="permission-row-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 8a6 6 0 0 1 12 0v4l2 3H4l2-3V8Z" />
+              <path d="M10 19h4" />
+            </svg>
+          </span>
+          <span class="permission-row-copy">
+            <strong>支付通知</strong>
+            <small>识别微信、支付宝和银行 App 通知</small>
+          </span>
+          <button type="button" id="notificationPermissionButton">未开启</button>
+        </div>
+        <div class="permission-row">
+          <span class="permission-row-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+              <path d="M9 7h6M9 11h6M9 15h4" />
+            </svg>
+          </span>
+          <span class="permission-row-copy">
+            <strong>银行短信</strong>
+            <small>识别带金额的银行卡消费和入账短信</small>
+          </span>
+          <button type="button" id="smsPermissionButton">未开启</button>
+        </div>
+        <p class="permission-footnote">
+          部分银行或微信/支付宝页面关闭通知后无法自动识别，可随时在明细中补记。
+        </p>
+        <div class="diagnostic-entry">
+          <button id="notificationDiagnosticButton" type="button">查看最近通知诊断</button>
+          <span>内容只保存在本机</span>
+        </div>
+        <div class="diagnostic-entry ai-settings-entry">
+          <span class="ai-entry-copy">
+            <strong>AI 财务专家</strong>
+            <small id="aiPanelStatus">未启用 · 本地规则优先</small>
+          </span>
+          <button id="aiSettingsButton" type="button">配置 DeepSeek</button>
+        </div>
+        <div class="diagnostic-entry ai-settings-entry">
+          <span class="ai-entry-copy">
+            <strong>云语音记账</strong>
+            <small id="cloudVoicePanelStatus">腾讯云 · 尚未配置</small>
+          </span>
+          <button id="cloudSpeechSettingsButton" type="button">配置腾讯云</button>
+        </div>
+      </section>
+      <p class="manage-note" id="manageStorageNote">
+        你的数据只保存在当前浏览器。定期导出备份，换设备时可重新导入。
+      </p>
+      <div class="manage-actions">
+        <button class="manage-action" id="manageExportButton" type="button">
+          <span class="manage-action-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+          </span>
+          <span><strong>导出账单</strong><small>下载为 CSV 表格</small></span>
+        </button>
+        <button class="manage-action" id="importButton" type="button">
+          <span class="manage-action-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0 4 4m-4-4L8 8M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+          </span>
+          <span><strong>导入备份</strong><small>读取之前导出的 CSV</small></span>
+        </button>
+        <input id="importInput" type="file" accept=".csv,text/csv" hidden />
+        <button class="manage-action" id="demoButton" type="button">
+          <span class="manage-action-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" /><path d="m18 15 .9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15Z" /></svg>
+          </span>
+          <span><strong>载入示例</strong><small>快速体验完整功能</small></span>
+        </button>
+        <button class="manage-action danger" id="clearButton" type="button">
+          <span class="manage-action-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></svg>
+          </span>
+          <span><strong>清空全部记录</strong><small>此操作无法撤销</small></span>
+        </button>
+      </div>
+    </dialog>
+
+    <dialog class="confirm-dialog" id="confirmDialog">
+      <div class="confirm-icon" aria-hidden="true">!</div>
+      <h2 id="confirmTitle">确认删除？</h2>
+      <p id="confirmMessage">删除后无法恢复。</p>
+      <div class="confirm-actions">
+        <button class="secondary-button" id="confirmCancelButton" type="button">取消</button>
+        <button class="danger-button" id="confirmActionButton" type="button">确认删除</button>
+      </div>
+    </dialog>
+
+    <dialog class="diagnostic-dialog" id="diagnosticDialog">
+      <div class="dialog-head">
+        <div>
+          <p class="section-kicker">AUTO CAPTURE DIAGNOSTICS</p>
+          <h2>通知识别诊断</h2>
+        </div>
+        <button class="icon-button" id="closeDiagnosticButton" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <p class="diagnostic-summary" id="diagnosticSummary"></p>
+      <div class="diagnostic-list" id="diagnosticList"></div>
+      <div class="diagnostic-actions">
+        <button class="secondary-button" id="clearDiagnosticButton" type="button">清除诊断记录</button>
+        <button class="primary-button" id="refreshDiagnosticButton" type="button">重新检查</button>
+      </div>
+    </dialog>
+
+    <dialog class="voice-dialog" id="voiceDialog">
+      <div class="dialog-head">
+        <div>
+          <p class="section-kicker">VOICE ENTRY</p>
+          <h2>语音记账</h2>
+        </div>
+        <button class="icon-button" id="closeVoiceButton" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <p class="voice-transcript" id="voiceTranscript"></p>
+      <div class="voice-results" id="voiceResults"></div>
+      <p class="voice-note" id="voiceNote">
+        云语音示例：“今天午餐 32 元，打车 18 元。”
+      </p>
+      <div class="voice-actions">
+        <button class="secondary-button" id="voiceRetryButton" type="button">重新说</button>
+        <button class="secondary-button" id="voiceManualButton" type="button">手动调整</button>
+        <button class="primary-button" id="voiceConfirmButton" type="button">确认导入</button>
+      </div>
+    </dialog>
+
+    <dialog class="ai-settings-dialog" id="aiSettingsDialog">
+      <form id="aiSettingsForm" method="dialog">
+        <div class="dialog-handle" aria-hidden="true"></div>
+        <div class="dialog-head">
+          <div>
+            <p class="section-kicker">DEEPSEEK FINANCIAL ANALYST</p>
+            <h2>AI 财务专家</h2>
+          </div>
+          <button class="icon-button" id="closeAiSettingsButton" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <p class="ai-settings-intro">
+          DeepSeek 只处理本地规则无法确定的通知。模型需要先看到通知标题和正文，才能判断真实收支金额。
+        </p>
+
+        <div class="form-grid">
+          <label class="field full-field">
+            <span>
+              选择模型
+              <button class="inline-field-action" id="refreshDeepSeekModelsButton" type="button">
+                刷新可用模型
+              </button>
+            </span>
+            <select id="aiModel" required>
+              <option value="deepseek-chat">deepseek-chat · 推荐，适合收支提取</option>
+              <option value="deepseek-reasoner">deepseek-reasoner · 深度推理，速度较慢</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>调用模式</span>
+            <select id="aiMode">
+              <option value="hybrid">AI 优先，失败后本地兜底</option>
+              <option value="local">仅使用本地规则</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field full-field">
+          <span>DeepSeek API 地址</span>
+          <input
+            id="aiEndpoint"
+            type="url"
+            required
+            placeholder="https://api.deepseek.com/v1/chat/completions"
+          />
+        </label>
+        <label class="field full-field">
+          <span>API Key <small>使用 Android Keystore 加密保存</small></span>
+          <input
+            id="aiApiKey"
+            type="password"
+            autocomplete="off"
+            placeholder="填写你从服务商申请的 API Key"
+          />
+        </label>
+
+        <label class="ai-enable-row">
+          <input id="aiEnabled" type="checkbox" />
+          <span><strong>启用 AI 财务专家</strong><small>关闭后只使用免费本地规则</small></span>
+        </label>
+
+        <label class="ai-consent">
+          <input id="aiConsent" type="checkbox" />
+          <span>
+            我了解启用后，当前通知的应用名、标题和正文会通过 HTTPS 发送到所选模型服务。
+            本地高置信度结果默认不会上传。
+          </span>
+        </label>
+
+        <p class="ai-settings-note">
+          模型可用性和费用以 DeepSeek 开放平台账户为准。填写 API Key 后可以刷新官方模型列表。
+        </p>
+        <p class="ai-settings-status" id="aiSettingsStatus" aria-live="polite"></p>
+
+        <div class="dialog-actions ai-dialog-actions">
+          <button class="secondary-button" id="testAiConnectionButton" type="button">测试连接</button>
+          <button class="primary-button save-button" type="submit">保存设置</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="ai-settings-dialog" id="cloudSpeechSettingsDialog">
+      <form id="cloudSpeechSettingsForm" method="dialog">
+        <div class="dialog-handle" aria-hidden="true"></div>
+        <div class="dialog-head">
+          <div>
+            <p class="section-kicker">TENCENT CLOUD SPEECH</p>
+            <h2>腾讯云语音识别</h2>
+          </div>
+          <button class="icon-button" id="closeCloudSpeechSettingsButton" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <p class="ai-settings-intro">
+          按住麦克风时直接在手机上录音，松开后发送到腾讯云一句话识别。无需下载语音模型，首次使用也不会等待模型加载。
+        </p>
+
+        <label class="field full-field">
+          <span>识别引擎</span>
+          <select id="cloudSpeechEngine">
+            <option value="16k_zh">中文普通话 · 推荐</option>
+            <option value="16k_zh-PY">普通话、英语与粤语</option>
+            <option value="16k_zh_dialect">中文多方言</option>
+            <option value="16k_yue">粤语</option>
+          </select>
+        </label>
+
+        <label class="field full-field">
+          <span>SecretId <small>使用 Android Keystore 加密保存</small></span>
+          <input
+            id="cloudSpeechSecretId"
+            type="password"
+            autocomplete="off"
+            placeholder="填写腾讯云访问密钥 SecretId"
+          />
+        </label>
+        <label class="field full-field">
+          <span>SecretKey <small>使用 Android Keystore 加密保存</small></span>
+          <input
+            id="cloudSpeechSecretKey"
+            type="password"
+            autocomplete="off"
+            placeholder="填写腾讯云访问密钥 SecretKey"
+          />
+        </label>
+
+        <label class="ai-enable-row">
+          <input id="cloudSpeechEnabled" type="checkbox" />
+          <span><strong>启用云语音记账</strong><small>关闭后仍可手动记账</small></span>
+        </label>
+
+        <label class="ai-consent">
+          <input id="cloudSpeechConsent" type="checkbox" />
+          <span>
+            我了解松开按钮后，本次录音会通过 HTTPS 发送到腾讯云进行语音识别。
+            录音仅用于完成这次转写。
+          </span>
+        </label>
+
+        <p class="ai-settings-note">
+          当前个人版会在本机直接调用腾讯云接口。正式公开分发前，应改为由自有服务端保管密钥并中转请求。
+        </p>
+        <p class="ai-settings-status" id="cloudSpeechSettingsStatus" aria-live="polite"></p>
+
+        <div class="dialog-actions ai-dialog-actions">
+          <button class="primary-button save-button" type="submit">保存设置</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <noscript>
+      <div class="noscript-message">请启用 JavaScript 后使用日迹账本。</div>
+    </noscript>
+    <script src="app.js" defer></script>
+  </body>
+</html>

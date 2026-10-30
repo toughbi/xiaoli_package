@@ -1,0 +1,16 @@
+.android-build/
+.edge-*/
+*.png.tmp
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+*.iml
+*.apk
+*.aab
+*.idsig
+*.jks
+*.keystore
+keystore.properties
+release/
+.vscode/settings.json

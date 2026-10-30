@@ -1,0 +1,18 @@
+{
+  "name": "日迹账本",
+  "short_name": "日迹",
+  "description": "记录微信、支付宝、银行卡等渠道的每日收入与支出。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f2",
+  "theme_color": "#f3f5f2",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
