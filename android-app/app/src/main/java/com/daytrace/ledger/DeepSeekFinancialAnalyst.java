@@ -11,6 +11,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class DeepSeekFinancialAnalyst {
     private static final String SYSTEM_PROMPT =
@@ -86,13 +87,31 @@ final class DeepSeekFinancialAnalyst {
             String appLabel,
             String title,
             String body) throws Exception {
+        return analyze(
+                settings,
+                packageName,
+                appLabel,
+                title,
+                body,
+                Long.MAX_VALUE,
+                new Cancellation());
+    }
+
+    static Decision analyze(
+            AiSettingsStore.Settings settings,
+            String packageName,
+            String appLabel,
+            String title,
+            String body,
+            long deadlineAt,
+            Cancellation cancellation) throws Exception {
         String safeTitle = sanitize(title, 240);
         String safeBody = sanitize(body, 1200);
         String userMessage = "来源应用：" + sanitize(appLabel, 80) + "\n"
                 + "包名：" + sanitize(packageName, 160) + "\n"
                 + "通知标题：" + safeTitle + "\n"
                 + "通知正文：" + safeBody;
-        String content = request(settings, userMessage);
+        String content = request(settings, userMessage, deadlineAt, cancellation);
         return parseDecision(content, safeTitle + " " + safeBody);
     }
 
@@ -109,12 +128,18 @@ final class DeepSeekFinancialAnalyst {
         return "连接成功，" + settings.model + " 正确识别测试金额 1.00 元";
     }
 
-    private static String request(AiSettingsStore.Settings settings, String userMessage) throws Exception {
+    private static String request(
+            AiSettingsStore.Settings settings,
+            String userMessage,
+            long deadlineAt,
+            Cancellation cancellation) throws Exception {
         String endpoint = normalizeEndpoint(settings.endpoint);
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
+        if (cancellation != null) cancellation.attach(connection);
         connection.setRequestMethod("POST");
-        connection.setConnectTimeout(15_000);
-        connection.setReadTimeout(settings.model.contains("reasoner") ? 75_000 : 35_000);
+        int defaultReadTimeout = settings.model.contains("reasoner") ? 75_000 : 35_000;
+        connection.setConnectTimeout(timeoutWithinDeadline(deadlineAt, 15_000));
+        connection.setReadTimeout(timeoutWithinDeadline(deadlineAt, defaultReadTimeout));
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
         connection.setRequestProperty("Authorization", "Bearer " + settings.apiKey);
@@ -136,11 +161,13 @@ final class DeepSeekFinancialAnalyst {
         }
 
         int status = connection.getResponseCode();
+        connection.setReadTimeout(timeoutWithinDeadline(deadlineAt, defaultReadTimeout));
         InputStream stream = status >= 200 && status < 300
                 ? connection.getInputStream()
                 : connection.getErrorStream();
         String response = readAll(stream);
         connection.disconnect();
+        if (cancellation != null) cancellation.detach(connection);
         if (status < 200 || status >= 300) {
             throw new IllegalStateException(
                     "模型服务返回 HTTP " + status + "：" + shorten(response, 220));
@@ -156,6 +183,34 @@ final class DeepSeekFinancialAnalyst {
                 .opt("content");
         if (content == null) throw new IllegalStateException("模型没有返回识别内容");
         return content.toString();
+    }
+
+    private static int timeoutWithinDeadline(long deadlineAt, int desiredTimeout) {
+        if (deadlineAt == Long.MAX_VALUE) return desiredTimeout;
+        long remaining = deadlineAt - System.currentTimeMillis();
+        if (remaining <= 0) {
+            throw new IllegalStateException("AI 处理超过 5 分钟");
+        }
+        return (int) Math.max(1, Math.min(desiredTimeout, remaining));
+    }
+
+    static final class Cancellation {
+        private final AtomicReference<HttpURLConnection> connection =
+                new AtomicReference<>();
+
+        void cancel() {
+            HttpURLConnection current = connection.getAndSet(null);
+            if (current != null) current.disconnect();
+        }
+
+        private void attach(HttpURLConnection value) {
+            HttpURLConnection previous = connection.getAndSet(value);
+            if (previous != null && previous != value) previous.disconnect();
+        }
+
+        private void detach(HttpURLConnection value) {
+            connection.compareAndSet(value, null);
+        }
     }
 
     static JSONArray listModels(AiSettingsStore.Settings settings) throws Exception {

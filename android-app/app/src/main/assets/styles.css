@@ -1589,6 +1589,80 @@ dialog form,
 .permission-row button.active { color: var(--lime); background: var(--green); }
 .permission-footnote { margin: 10px 0 0; }
 
+.permission-onboarding-dialog {
+  width: min(440px, calc(100% - 28px));
+  padding: 28px;
+}
+
+.permission-onboarding-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  place-items: center;
+  color: var(--lime);
+  background: var(--green);
+  border-radius: 16px;
+}
+
+.permission-onboarding-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.permission-onboarding-dialog h2 {
+  margin: 6px 0 8px;
+  font-size: 23px;
+}
+
+.permission-onboarding-intro,
+.permission-onboarding-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.permission-onboarding-list {
+  margin: 16px 0 12px;
+  padding: 4px 13px;
+  background: var(--card-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.permission-onboarding-list .permission-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.permission-onboarding-list .permission-row:first-child {
+  border-top: 0;
+}
+
+.permission-onboarding-list .permission-row-copy small {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.permission-onboarding-note {
+  font-size: 9px;
+}
+
+.permission-onboarding-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.permission-onboarding-actions .primary-button,
+.permission-onboarding-actions .secondary-button {
+  width: 100%;
+}
+
 .diagnostic-entry {
   display: flex;
   align-items: center;
@@ -1833,6 +1907,34 @@ dialog form,
   font-size: 9px !important;
 }
 
+.diagnostic-trace {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+}
+
+.diagnostic-trace div {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 7px;
+}
+
+.diagnostic-trace dt {
+  color: var(--ink-faint);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.diagnostic-trace dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 9px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
 .diagnostic-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2072,6 +2174,7 @@ dialog form,
   .manage-dialog,
   .confirm-dialog,
   .diagnostic-dialog,
+  .permission-onboarding-dialog,
   .ai-settings-dialog form {
     padding: 12px 20px calc(22px + env(safe-area-inset-bottom));
   }
@@ -5433,6 +5536,7 @@ dialog::backdrop {
   .manage-dialog,
   .confirm-dialog,
   .diagnostic-dialog,
+  .permission-onboarding-dialog,
   .ai-settings-dialog form {
     padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
   }

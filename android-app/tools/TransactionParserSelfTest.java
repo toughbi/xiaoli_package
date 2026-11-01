@@ -111,6 +111,15 @@ public final class TransactionParserSelfTest {
                 !AdvertisementDetector.isAdvertisement(
                         "您尾号1234卡消费人民币45.80元，可用额度12000元。"),
                 "completed bank transaction must not be rejected as advertisement");
+        require(
+                TransactionParser.containsNumber("实付 18.50 元"),
+                "numeric notification must pass the local number check");
+        require(
+                !TransactionParser.containsNumber("请查收本次到账"),
+                "notification without digits must be rejected by the local number check");
+        require(
+                "bank".equals(TransactionParser.channelForPackage("sms:95588")),
+                "SMS source must be mapped to the bank channel");
         System.out.println("TransactionParserSelfTest: all checks passed");
     }
 

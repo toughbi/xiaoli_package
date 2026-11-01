@@ -143,6 +143,14 @@ final class NotificationSemanticAnalyzer {
         return findBestAmount(normalize(text)) != null;
     }
 
+    static boolean containsNumber(String text) {
+        String normalized = normalize(text);
+        for (int index = 0; index < normalized.length(); index++) {
+            if (Character.isDigit(normalized.charAt(index))) return true;
+        }
+        return false;
+    }
+
     static Double bestAmountValue(String text) {
         AmountCandidate candidate = findBestAmount(normalize(text));
         return candidate == null ? null : candidate.value;

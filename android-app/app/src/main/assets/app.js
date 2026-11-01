@@ -2,6 +2,7 @@
 
 const STORAGE_KEY = "daytrace-ledger-records-v1";
 const DISMISSED_AUTO_KEY = "daytrace-ledger-dismissed-auto-v1";
+const PERMISSION_ONBOARDING_KEY = "daytrace-permission-onboarding-v1";
 const CURRENCY = new Intl.NumberFormat("zh-CN", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -112,6 +113,15 @@ const dom = {
   permissionPill: document.querySelector("#permissionPill"),
   notificationPermissionButton: document.querySelector("#notificationPermissionButton"),
   smsPermissionButton: document.querySelector("#smsPermissionButton"),
+  permissionOnboardingDialog: document.querySelector("#permissionOnboardingDialog"),
+  onboardingNotificationStatus: document.querySelector("#onboardingNotificationStatus"),
+  onboardingNotificationButton: document.querySelector("#onboardingNotificationButton"),
+  onboardingSmsStatus: document.querySelector("#onboardingSmsStatus"),
+  onboardingSmsButton: document.querySelector("#onboardingSmsButton"),
+  onboardingAiStatus: document.querySelector("#onboardingAiStatus"),
+  onboardingAiButton: document.querySelector("#onboardingAiButton"),
+  permissionOnboardingLaterButton: document.querySelector("#permissionOnboardingLaterButton"),
+  permissionOnboardingDoneButton: document.querySelector("#permissionOnboardingDoneButton"),
   manageStorageNote: document.querySelector("#manageStorageNote"),
   notificationDiagnosticButton: document.querySelector("#notificationDiagnosticButton"),
   diagnosticDialog: document.querySelector("#diagnosticDialog"),
@@ -1568,6 +1578,99 @@ function readNativePermissionStatus() {
   }
 }
 
+function markPermissionOnboardingSeen() {
+  try {
+    window.localStorage.setItem(PERMISSION_ONBOARDING_KEY, "1");
+  } catch (error) {
+    console.warn("无法保存权限引导状态", error);
+  }
+}
+
+function permissionOnboardingSeen() {
+  try {
+    return window.localStorage.getItem(PERMISSION_ONBOARDING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function updatePermissionOnboardingUi(status) {
+  if (!isAndroidApp() || !dom.permissionOnboardingDialog) return;
+  const notificationAccess = Boolean(status.notificationAccess);
+  const listenerConnected = Boolean(status.listenerConnected);
+  const smsGranted = Boolean(status.smsGranted);
+  const notificationReady = notificationAccess && listenerConnected;
+  const aiSettings = readAiSettings() || {};
+  const aiReady = Boolean(
+    aiSettings.enabled && aiSettings.hasApiKey && aiSettings.consent,
+  );
+
+  dom.onboardingNotificationStatus.textContent = !notificationAccess
+    ? "尚未开启，用于识别微信、支付宝和银行 App 通知"
+    : listenerConnected
+      ? "已授权，通知监听服务已连接"
+      : "已授权，但监听服务尚未连接";
+  dom.onboardingNotificationButton.textContent = !notificationAccess
+    ? "去开启"
+    : listenerConnected
+      ? "已开启"
+      : "重新连接";
+  dom.onboardingNotificationButton.classList.toggle("active", notificationReady);
+
+  dom.onboardingSmsStatus.textContent = smsGranted
+    ? "已授权，用于识别带金额的银行短信"
+    : "尚未授权，用于识别带金额的银行卡消费和入账短信";
+  dom.onboardingSmsButton.textContent = smsGranted ? "已开启" : "去授权";
+  dom.onboardingSmsButton.classList.toggle("active", smsGranted);
+
+  dom.onboardingAiStatus.textContent = !aiSettings.enabled
+    ? "尚未启用 · 所有自动账目都需要 AI 判断"
+    : !aiReady
+      ? "配置未完成 · 自动记账暂停"
+      : `DeepSeek 已就绪 · ${aiSettings.model || "deepseek-chat"}`;
+  dom.onboardingAiButton.textContent = aiReady ? "已开启" : "去配置";
+  dom.onboardingAiButton.classList.toggle("active", aiReady);
+
+  if (
+    notificationReady &&
+    smsGranted &&
+    aiReady &&
+    dom.permissionOnboardingDialog.open
+  ) {
+    markPermissionOnboardingSeen();
+    dom.permissionOnboardingDialog.close();
+    showToast("自动记账权限已准备完成");
+  }
+}
+
+function maybeShowPermissionOnboarding() {
+  if (!isAndroidApp() || permissionOnboardingSeen()) return;
+  const status = readNativePermissionStatus();
+  const aiSettings = readAiSettings() || {};
+  const aiReady = Boolean(
+    aiSettings.enabled && aiSettings.hasApiKey && aiSettings.consent,
+  );
+  if (!status || (status.notificationAccess && status.smsGranted && aiReady)) return;
+  window.setTimeout(() => {
+    if (
+      dom.permissionOnboardingDialog.open ||
+      document.querySelector("dialog[open]")
+    ) {
+      return;
+    }
+    const latestStatus = readNativePermissionStatus() || status;
+    const latestAiSettings = readAiSettings() || {};
+    const latestAiReady = Boolean(
+      latestAiSettings.enabled &&
+        latestAiSettings.hasApiKey &&
+        latestAiSettings.consent,
+    );
+    if (latestStatus.notificationAccess && latestStatus.smsGranted && latestAiReady) return;
+    updatePermissionOnboardingUi(latestStatus);
+    dom.permissionOnboardingDialog.showModal();
+  }, 450);
+}
+
 function updateNativePermissionUi() {
   if (!isAndroidApp()) {
     dom.nativePermissionPanel.hidden = true;
@@ -1581,16 +1684,28 @@ function updateNativePermissionUi() {
     "你的数据只保存在这台 Android 手机上。建议定期导出备份，换手机时再导入。";
   const status = readNativePermissionStatus() || {};
   const notificationReady = Boolean(status.notificationAccess);
+  const listenerConnected = Boolean(status.listenerConnected);
   const smsReady = Boolean(status.smsGranted);
+  updatePermissionOnboardingUi(status);
 
-  dom.notificationPermissionButton.textContent = notificationReady ? "已开启" : "去开启";
-  dom.notificationPermissionButton.classList.toggle("active", notificationReady);
+  dom.notificationPermissionButton.textContent = !notificationReady
+    ? "去开启"
+    : listenerConnected
+      ? "已开启"
+      : "重新连接";
+  dom.notificationPermissionButton.classList.toggle(
+    "active",
+    notificationReady && listenerConnected,
+  );
   dom.smsPermissionButton.textContent = smsReady ? "已开启" : "去授权";
   dom.smsPermissionButton.classList.toggle("active", smsReady);
 
-  if (notificationReady && smsReady) {
+  if (notificationReady && listenerConnected && smsReady) {
     dom.permissionPill.textContent = "已开启";
     dom.permissionPill.classList.add("active");
+  } else if (notificationReady && !listenerConnected) {
+    dom.permissionPill.textContent = "需重连";
+    dom.permissionPill.classList.remove("active");
   } else if (notificationReady) {
     dom.permissionPill.textContent = "部分开启";
     dom.permissionPill.classList.remove("active");
@@ -1613,20 +1728,16 @@ function readAiSettings() {
 function refreshAiPanelStatus(settings = null) {
   if (!isAndroidApp() || !dom.aiPanelStatus) return;
   settings = settings || readAiSettings();
-  if (settings?.mode === "local") {
-    dom.aiPanelStatus.textContent = "仅本地规则 · 不调用模型";
-    return;
-  }
   if (!settings?.enabled) {
-    dom.aiPanelStatus.textContent = "未启用 · 本地规则优先";
+    dom.aiPanelStatus.textContent = "AI 未启用 · 自动账目等待 AI";
     return;
   }
   if (!settings.hasApiKey || !settings.consent) {
     dom.aiPanelStatus.textContent = "已启用但配置不完整";
     return;
   }
-  const mode = settings.mode === "local" ? "仅本地规则" : "AI 优先";
-  dom.aiPanelStatus.textContent = `DeepSeek · ${settings.model || "deepseek-chat"} · ${mode}`;
+  dom.aiPanelStatus.textContent =
+    `DeepSeek · ${settings.model || "deepseek-chat"} · AI 判断后记账`;
 }
 
 function populateDeepSeekModels(models = [], selected = "deepseek-chat") {
@@ -1648,7 +1759,7 @@ function openAiSettingsDialog() {
     showToast("无法读取 AI 设置");
     return;
   }
-  dom.aiMode.value = settings.mode === "local" ? "local" : "hybrid";
+  dom.aiMode.value = "hybrid";
   dom.aiEndpoint.value = settings.endpoint || DEEPSEEK_ENDPOINT;
   populateDeepSeekModels([], settings.model || "deepseek-chat");
   dom.aiApiKey.value = "";
@@ -1661,7 +1772,7 @@ function openAiSettingsDialog() {
   dom.aiSettingsStatus.classList.remove("error");
   dom.testAiConnectionButton.disabled = false;
   dom.refreshDeepSeekModelsButton.disabled = false;
-  dom.aiSettingsDialog.showModal();
+  if (!dom.aiSettingsDialog.open) dom.aiSettingsDialog.showModal();
 }
 
 function aiSettingsPayload() {
@@ -1694,6 +1805,9 @@ function saveAiSettings(showFeedback = true) {
       dom.aiApiKey.placeholder = "API Key 已加密保存，留空表示不修改";
     }
     refreshAiPanelStatus(result.settings);
+    if (dom.permissionOnboardingDialog.open) {
+      updatePermissionOnboardingUi(readNativePermissionStatus() || {});
+    }
     if (showFeedback) showToast(result.message);
   }
   return result;
@@ -1839,6 +1953,7 @@ function refreshNativeIntegration() {
 function renderNotificationDiagnostics() {
   if (!isAndroidApp()) return;
   const status = readNativePermissionStatus() || {};
+  const pendingCount = Math.max(0, Number(status.pendingAnalysisCount) || 0);
   let events = [];
   try {
     events = JSON.parse(window.AndroidLedger.getNotificationDiagnostics() || "[]");
@@ -1846,30 +1961,35 @@ function renderNotificationDiagnostics() {
     console.warn("无法读取通知诊断", error);
   }
   events = Array.isArray(events) ? events : [];
-  const relevantEvents = events;
 
   if (!status.notificationAccess) {
     dom.diagnosticSummary.textContent =
       "通知读取权限尚未开启。请返回自动记账权限，开启「通知使用权」后再支付一笔测试。";
-  } else if (!relevantEvents.length) {
+  } else if (!status.listenerConnected) {
     dom.diagnosticSummary.textContent =
-      "已获得通知权限，但授权后还没有收到微信、支付宝或银行的通知。请确认对应 App 允许发送通知。";
+      "通知读取权限已开启，但监听服务当前未连接。应用已尝试重新连接，请稍后点击「重新诊断」，或关闭再打开一次通知使用权。";
+  } else if (pendingCount > 0) {
+    const lastError = String(status.pendingAnalysisError || "").trim();
+    dom.diagnosticSummary.textContent =
+      `有 ${pendingCount} 条候选通知已保存，正在等待 AI 准确识别，不会因排队自动改用本地规则。` +
+      (lastError ? ` 最近一次等待原因：${lastError}` : "");
+  } else if (!events.length) {
+    dom.diagnosticSummary.textContent =
+      "通知监听已连接，但还没有收到任何通知。诊断现在会记录监听服务收到的每一条通知。";
   } else {
-    const last = relevantEvents.at(-1);
-    dom.diagnosticSummary.textContent = last.recognized
-      ? `最近一次「${last.appLabel || last.packageName}」通知已通过本地语义识别。`
-      : last.containedAmount
-        ? "已收到支付相关通知并找到金额，但交易状态或收支方向还不够明确。请核对下方语义分析。"
-        : "已收到支付相关通知，但通知正文没有金额。该通知无法生成可靠账目。";
+    const last = events.at(-1);
+    dom.diagnosticSummary.textContent =
+      `最近一条「${last.appLabel || last.packageName || "未知应用"}」通知：` +
+      (last.outcome || "已记录，但没有可用的处理结果说明。");
   }
 
-  if (!relevantEvents.length) {
+  if (!events.length) {
     dom.diagnosticList.innerHTML =
-      '<div class="diagnostic-empty">还没有捕获到支付相关通知。自动记录只覆盖授权后出现的通知。</div>';
+      '<div class="diagnostic-empty">还没有捕获到任何通知。诊断会保存监听服务连接后收到的通知，最多保留最近 500 条。</div>';
     return;
   }
 
-  dom.diagnosticList.innerHTML = [...relevantEvents]
+  dom.diagnosticList.innerHTML = [...events]
     .reverse()
     .map((event) => {
       const largeScore = Number(event.icon?.largeIconSimilarity ?? -1);
@@ -1877,25 +1997,46 @@ function renderNotificationDiagnostics() {
       const bestIconScore = Math.max(largeScore, smallScore);
       const iconText =
         bestIconScore >= 0 ? `图标相似度 ${bestIconScore}%` : "图标无法比较";
+      const waitingForAi =
+        event.processingStage === "AI_QUEUED" ||
+        event.processingStage === "AI_RETRY" ||
+        event.processingStage === "AI_DIRECT";
+      const statusText = event.recognized
+        ? "已记账"
+        : waitingForAi
+          ? event.processingStage === "AI_RETRY"
+            ? "等待重试"
+            : "等待 AI"
+          : event.processingStage === "PRELIMINARY_REJECTED"
+            ? "初筛未通过"
+            : event.processingStage === "AI_QUEUE_FAILED"
+              ? "入队失败"
+              : event.processingStage === "CAPTURE_FAILED"
+                ? "读取失败"
+            : "未记账";
+      const basis =
+        event.decisionBasis || event.semanticReason || "没有可用的判断依据说明。";
+      const operation = event.operation || "没有可用的操作说明。";
+      const outcome = event.outcome || "没有可用的结果说明。";
       return `
         <article class="diagnostic-event">
           <div class="diagnostic-event-head">
             <span>${escapeHtml(event.capturedAt || "未知时间")}</span>
             <span class="diagnostic-status ${event.recognized ? "recognized" : "unrecognized"}">
-              ${event.recognized ? "已识别" : event.containedAmount ? "方向不明确" : "未包含金额"}
+              ${escapeHtml(statusText)}
             </span>
           </div>
           <div class="diagnostic-event-meta">
             <span>${escapeHtml(event.appLabel || event.packageName || "未知应用")} · ${escapeHtml(event.packageName || "")}</span>
-            <span>${escapeHtml(iconText)}</span>
+            <span>${(event.preliminaryPassed ?? event.sourceRelevant) ? "初筛通过" : "初筛未通过"} · ${escapeHtml(iconText)}</span>
           </div>
-          <strong>${escapeHtml(event.title || "支付通知")}</strong>
+          <strong>${escapeHtml(event.title || "无标题通知")}</strong>
           <p>${escapeHtml(event.body || "通知正文为空")}</p>
-          ${
-            event.semanticReason
-              ? `<p class="diagnostic-reason">${escapeHtml(event.semanticReason)}</p>`
-              : ""
-          }
+          <dl class="diagnostic-trace">
+            <div><dt>判断依据</dt><dd>${escapeHtml(basis)}</dd></div>
+            <div><dt>执行操作</dt><dd>${escapeHtml(operation)}</dd></div>
+            <div><dt>最终结果</dt><dd>${escapeHtml(outcome)}</dd></div>
+          </dl>
         </article>
       `;
     })
@@ -2027,18 +2168,73 @@ function initialize() {
     });
   });
   dom.notificationPermissionButton.addEventListener("click", () => {
+    const status = readNativePermissionStatus();
+    if (status?.notificationAccess && status.listenerConnected === false) {
+      window.AndroidLedger?.reconnectNotificationListener();
+      showToast("正在重新连接通知监听");
+      window.setTimeout(updateNativePermissionUi, 800);
+      return;
+    }
     window.AndroidLedger?.openNotificationSettings();
   });
   dom.smsPermissionButton.addEventListener("click", () => {
     window.AndroidLedger?.requestSmsPermission();
   });
+  dom.permissionOnboardingDialog.addEventListener("close", markPermissionOnboardingSeen);
+  dom.permissionOnboardingLaterButton.addEventListener("click", () => {
+    dom.permissionOnboardingDialog.close();
+  });
+  dom.permissionOnboardingDoneButton.addEventListener("click", () => {
+    dom.permissionOnboardingDialog.close();
+  });
+  dom.onboardingNotificationButton.addEventListener("click", () => {
+    const status = readNativePermissionStatus() || {};
+    if (status.notificationAccess && status.listenerConnected === false) {
+      window.AndroidLedger?.reconnectNotificationListener();
+      showToast("正在重新连接通知监听");
+      return;
+    }
+    window.AndroidLedger?.openNotificationSettings();
+  });
+  dom.onboardingSmsButton.addEventListener("click", () => {
+    const status = readNativePermissionStatus() || {};
+    if (status.smsGranted) {
+      showToast("短信权限已开启");
+      return;
+    }
+    window.AndroidLedger?.requestSmsPermission();
+  });
+  dom.onboardingAiButton.addEventListener("click", openAiSettingsDialog);
   dom.notificationDiagnosticButton.addEventListener("click", openNotificationDiagnostics);
   document.querySelector("#closeDiagnosticButton").addEventListener("click", () => {
     dom.diagnosticDialog.close();
   });
   document.querySelector("#refreshDiagnosticButton").addEventListener("click", () => {
-    refreshNativeIntegration();
+    const button = document.querySelector("#refreshDiagnosticButton");
+    let status = {};
+    try {
+      status = JSON.parse(window.AndroidLedger?.recheckNotificationPipeline() || "{}");
+    } catch (error) {
+      console.warn("无法重新诊断通知链路", error);
+    }
+    button.disabled = true;
+    button.textContent = "正在重新诊断…";
     renderNotificationDiagnostics();
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = "重新诊断";
+      refreshNativeIntegration();
+      renderNotificationDiagnostics();
+      if (!status.notificationAccess) {
+        showToast("通知使用权未开启，请先开启通知读取权限");
+      } else if (!status.listenerConnected) {
+        showToast("已发起通知监听重连，请等待状态更新");
+      } else {
+        showToast(
+          `诊断已刷新，待 AI 处理 ${Math.max(0, Number(status.pendingAnalysisCount) || 0)} 条`,
+        );
+      }
+    }, 1_300);
   });
   document.querySelector("#clearDiagnosticButton").addEventListener("click", () => {
     window.AndroidLedger?.clearNotificationDiagnostics();
@@ -2091,6 +2287,7 @@ function initialize() {
   };
   window.onAndroidPermissionChanged = () => {
     refreshNativeIntegration();
+    if (dom.diagnosticDialog.open) renderNotificationDiagnostics();
   };
   window.onVoiceResult = handleVoiceResult;
   window.onVoicePartial = handleVoicePartial;
@@ -2143,6 +2340,7 @@ function initialize() {
   }
 
   refreshNativeIntegration();
+  maybeShowPermissionOnboarding();
 }
 
 initialize();

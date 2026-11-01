@@ -71,9 +71,14 @@ public final class TransactionParser {
         return NotificationSemanticAnalyzer.containsAmount(textOf(title, body));
     }
 
+    public static boolean containsNumber(String text) {
+        return NotificationSemanticAnalyzer.containsNumber(text);
+    }
+
     public static String channelForPackage(String packageName) {
         if (packageName == null) return "other";
         String value = packageName.toLowerCase(Locale.ROOT);
+        if (value.startsWith("sms:")) return "bank";
         if (value.equals("com.tencent.mm")) return "wechat";
         if (value.equals("com.eg.android.alipaygphone")) return "alipay";
         if (value.contains("unionpay")) return "unionpay";
@@ -94,7 +99,9 @@ public final class TransactionParser {
             case "paypal":
                 return "PayPal 通知";
             case "bank":
-                return "银行 App 通知";
+                return packageName != null && packageName.startsWith("sms:")
+                        ? "银行短信"
+                        : "银行 App 通知";
             default:
                 return "支付通知";
         }

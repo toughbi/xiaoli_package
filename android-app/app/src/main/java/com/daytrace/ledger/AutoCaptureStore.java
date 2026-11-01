@@ -139,4 +139,5 @@ public final class AutoCaptureStore {
             return Integer.toHexString(value.hashCode());
         }
     }
+
 }

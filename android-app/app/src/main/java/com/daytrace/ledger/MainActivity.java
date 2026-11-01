@@ -49,7 +49,6 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_SMS_PERMISSION = 41;
     private static final int REQUEST_IMPORT_CSV = 42;
     private static final int REQUEST_RECORD_AUDIO = 44;
-    private static final ExecutorService AI_EXECUTOR = Executors.newSingleThreadExecutor();
     private static final ExecutorService VOICE_EXECUTOR = Executors.newFixedThreadPool(2);
 
     private WebView webView;
@@ -59,6 +58,7 @@ public final class MainActivity extends Activity {
     private volatile boolean voiceResultDelivered;
     private volatile int activeVoiceRequestId;
     private final AtomicInteger voiceRequestSequence = new AtomicInteger();
+    private int listenerReconnectAttempt;
     private final BroadcastReceiver captureReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -149,13 +149,14 @@ public final class MainActivity extends Activity {
 
     private void registerCaptureReceiver() {
         IntentFilter filter = new IntentFilter(AutoCaptureStore.ACTION_TRANSACTION_CAPTURED);
+        filter.addAction(PaymentNotificationService.ACTION_NOTIFICATION_LISTENER_STATE_CHANGED);
         registerReceiver(captureReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
     }
 
     private void notifyWebApp() {
         if (webView == null) return;
         webView.evaluateJavascript(
-                "window.loadNativeTransactions && window.loadNativeTransactions();", null);
+                "window.onAndroidPermissionChanged && window.onAndroidPermissionChanged();", null);
     }
 
     private boolean hasNotificationAccess() {
@@ -173,6 +174,13 @@ public final class MainActivity extends Activity {
     private JSONObject permissionStatus() throws JSONException {
         JSONObject status = new JSONObject();
         status.put("notificationAccess", hasNotificationAccess());
+        status.put(
+                "listenerConnected",
+                hasNotificationAccess() && PaymentNotificationService.isListenerConnected());
+        PendingAiNotificationStore pendingAiStore =
+                new PendingAiNotificationStore(this);
+        status.put("pendingAnalysisCount", pendingAiStore.count());
+        status.put("pendingAnalysisError", pendingAiStore.lastError());
         status.put("smsGranted", hasSmsPermission());
         return status;
     }
@@ -184,6 +192,38 @@ public final class MainActivity extends Activity {
         } catch (Exception error) {
             Toast.makeText(this, "无法打开通知读取设置，请在系统设置中搜索「通知使用权」", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void reconnectNotificationListener() {
+        int attempt = ++listenerReconnectAttempt;
+        PaymentNotificationService.reconnectNow(this);
+        Toast.makeText(this, "正在重新连接通知监听", Toast.LENGTH_SHORT).show();
+        if (webView == null) return;
+        webView.postDelayed(() -> {
+            if (attempt == listenerReconnectAttempt
+                    && !PaymentNotificationService.isListenerConnected()) {
+                PaymentNotificationService.requestListenerRebind(this);
+            }
+        }, 1_000);
+        webView.postDelayed(() -> {
+            if (attempt == listenerReconnectAttempt
+                    && !PaymentNotificationService.isListenerConnected()) {
+                PaymentNotificationService.requestListenerRebind(this);
+            }
+        }, 2_200);
+        webView.postDelayed(() -> {
+            if (attempt != listenerReconnectAttempt) return;
+            if (PaymentNotificationService.isListenerConnected()) {
+                Toast.makeText(this, "通知监听已重新连接", Toast.LENGTH_SHORT).show();
+                notifyWebApp();
+                return;
+            }
+            openNotificationSettings();
+            Toast.makeText(
+                    this,
+                    "自动重连未成功，请在通知使用权页面关闭再打开「日迹账本」",
+                    Toast.LENGTH_LONG).show();
+        }, 3_500);
     }
 
     private void requestSmsPermission() {
@@ -242,7 +282,7 @@ public final class MainActivity extends Activity {
             sendAiTestResult(result);
             return;
         }
-        AI_EXECUTOR.execute(() -> {
+        AiWorkPool.submit(() -> {
             try {
                 result.put("ok", true);
                 result.put("message", DeepSeekFinancialAnalyst.test(settings));
@@ -283,7 +323,7 @@ public final class MainActivity extends Activity {
             sendDeepSeekModelsResult(result);
             return;
         }
-        AI_EXECUTOR.execute(() -> {
+        AiWorkPool.submit(() -> {
             try {
                 JSONArray models = DeepSeekFinancialAnalyst.listModels(settings);
                 result.put("ok", true);
@@ -476,6 +516,11 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        listenerReconnectAttempt++;
+        if (hasNotificationAccess() && !PaymentNotificationService.isListenerConnected()) {
+            PaymentNotificationService.requestListenerRebind(this);
+        }
+        PaymentNotificationService.wakePendingAnalysis(this);
         notifyWebApp();
     }
 
@@ -519,13 +564,42 @@ public final class MainActivity extends Activity {
             try {
                 return permissionStatus().toString();
             } catch (JSONException error) {
-                return "{\"notificationAccess\":false,\"smsGranted\":false}";
+                return "{\"notificationAccess\":false,\"listenerConnected\":false,"
+                        + "\"pendingAnalysisCount\":0,\"pendingAnalysisError\":\"\","
+                        + "\"smsGranted\":false}";
             }
         }
 
         @JavascriptInterface
         public void openNotificationSettings() {
             runOnUiThread(MainActivity.this::openNotificationSettings);
+        }
+
+        @JavascriptInterface
+        public void reconnectNotificationListener() {
+            runOnUiThread(MainActivity.this::reconnectNotificationListener);
+        }
+
+        @JavascriptInterface
+        public String recheckNotificationPipeline() {
+            String status;
+            try {
+                status = permissionStatus().toString();
+            } catch (JSONException error) {
+                status = "{\"notificationAccess\":false,\"listenerConnected\":false,"
+                        + "\"pendingAnalysisCount\":0,\"pendingAnalysisError\":\"\","
+                        + "\"smsGranted\":false}";
+            }
+            runOnUiThread(() -> {
+                if (hasNotificationAccess() && !PaymentNotificationService.isListenerConnected()) {
+                    PaymentNotificationService.requestListenerRebind(MainActivity.this);
+                }
+                PaymentNotificationService.wakePendingAnalysis(MainActivity.this);
+                if (webView != null) {
+                    webView.postDelayed(MainActivity.this::notifyWebApp, 1_200);
+                }
+            });
+            return status;
         }
 
         @JavascriptInterface
@@ -560,7 +634,11 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface
         public String saveAiSettings(String payload) {
-            return new AiSettingsStore(MainActivity.this).saveFromJson(payload).toString();
+            String result = new AiSettingsStore(MainActivity.this)
+                    .saveFromJson(payload)
+                    .toString();
+            PaymentNotificationService.wakePendingAnalysis(MainActivity.this);
+            return result;
         }
 
         @JavascriptInterface

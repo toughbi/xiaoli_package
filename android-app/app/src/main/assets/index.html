@@ -407,7 +407,7 @@
           <span class="permission-pill" id="permissionPill">未开启</span>
         </div>
         <p class="native-permission-note">
-          自动识别默认在本机完成。只有主动开启 AI 后，低置信度通知才会通过 HTTPS 发送到所选模型服务。
+          所有通过本机初筛的通知都会交给 AI 判断；只有 AI 确认属于已完成交易后才会生成自动账目。
         </p>
         <div class="permission-row">
           <span class="permission-row-icon" aria-hidden="true">
@@ -445,7 +445,7 @@
         <div class="diagnostic-entry ai-settings-entry">
           <span class="ai-entry-copy">
             <strong>AI 财务专家</strong>
-            <small id="aiPanelStatus">未启用 · 本地规则优先</small>
+            <small id="aiPanelStatus">未启用 · 自动账目等待 AI</small>
           </span>
           <button id="aiSettingsButton" type="button">配置 DeepSeek</button>
         </div>
@@ -489,6 +489,50 @@
       </div>
     </dialog>
 
+    <dialog class="permission-onboarding-dialog" id="permissionOnboardingDialog">
+      <div class="permission-onboarding-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 8a6 6 0 0 1 12 0v4l2 3H4l2-3V8Z" />
+          <path d="M10 19h4" />
+        </svg>
+      </div>
+      <p class="section-kicker">FIRST SETUP</p>
+      <h2>开启自动记账</h2>
+      <p class="permission-onboarding-intro">
+        日迹账本需要读取通知和银行短信，先在本机排除明显广告与正文无数字的内容，再把其余内容交给 AI 判断。通知原文只保存在本机诊断中；启用 AI 后，通过初筛的内容会发送到模型服务。
+      </p>
+      <div class="permission-onboarding-list">
+        <div class="permission-row">
+          <span class="permission-row-copy">
+            <strong>通知使用权</strong>
+            <small id="onboardingNotificationStatus">用于识别微信、支付宝和银行 App 通知</small>
+          </span>
+          <button type="button" id="onboardingNotificationButton">去开启</button>
+        </div>
+        <div class="permission-row">
+          <span class="permission-row-copy">
+            <strong>银行短信权限</strong>
+            <small id="onboardingSmsStatus">用于识别带金额的银行卡消费和入账短信</small>
+          </span>
+          <button type="button" id="onboardingSmsButton">去授权</button>
+        </div>
+        <div class="permission-row">
+          <span class="permission-row-copy">
+            <strong>AI 财务判断</strong>
+            <small id="onboardingAiStatus">所有自动账目都必须经过 AI 判断</small>
+          </span>
+          <button type="button" id="onboardingAiButton">去配置</button>
+        </div>
+      </div>
+      <p class="permission-onboarding-note">
+        权限可以随时在系统设置中关闭。AI 未配置时不会自动生成账目；部分支付页面关闭通知后无法自动识别，仍可手动补记。
+      </p>
+      <div class="permission-onboarding-actions">
+        <button class="secondary-button" id="permissionOnboardingLaterButton" type="button">稍后设置</button>
+        <button class="primary-button" id="permissionOnboardingDoneButton" type="button">开始使用</button>
+      </div>
+    </dialog>
+
     <dialog class="confirm-dialog" id="confirmDialog">
       <div class="confirm-icon" aria-hidden="true">!</div>
       <h2 id="confirmTitle">确认删除？</h2>
@@ -513,7 +557,7 @@
       <div class="diagnostic-list" id="diagnosticList"></div>
       <div class="diagnostic-actions">
         <button class="secondary-button" id="clearDiagnosticButton" type="button">清除诊断记录</button>
-        <button class="primary-button" id="refreshDiagnosticButton" type="button">重新检查</button>
+        <button class="primary-button" id="refreshDiagnosticButton" type="button">重新诊断</button>
       </div>
     </dialog>
 
@@ -553,7 +597,7 @@
         </div>
 
         <p class="ai-settings-intro">
-          DeepSeek 只处理本地规则无法确定的通知。模型需要先看到通知标题和正文，才能判断真实收支金额。
+          所有通过本地初筛的通知都会交给 DeepSeek 判断。只有模型确认属于已完成交易并返回有效金额后，才会生成自动账目。
         </p>
 
         <div class="form-grid">
@@ -572,8 +616,7 @@
           <label class="field">
             <span>调用模式</span>
             <select id="aiMode">
-              <option value="hybrid">AI 优先，失败后本地兜底</option>
-              <option value="local">仅使用本地规则</option>
+              <option value="hybrid">AI 必须判断后才生成账目</option>
             </select>
           </label>
         </div>
@@ -599,7 +642,7 @@
 
         <label class="ai-enable-row">
           <input id="aiEnabled" type="checkbox" />
-          <span><strong>启用 AI 财务专家</strong><small>关闭后只使用免费本地规则</small></span>
+          <span><strong>启用 AI 财务专家</strong><small>关闭后自动记账暂停，不使用本地规则生成账目</small></span>
         </label>
 
         <label class="ai-consent">

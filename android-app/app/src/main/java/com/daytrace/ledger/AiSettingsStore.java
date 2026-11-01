@@ -49,12 +49,14 @@ final class AiSettingsStore {
 
     Settings load() {
         migrateIfNeeded();
+        String mode = preferences.getString(KEY_MODE, MODE_HYBRID);
+        if (MODE_LOCAL.equals(mode)) mode = MODE_HYBRID;
         return new Settings(
                 preferences.getBoolean(KEY_ENABLED, false),
                 preferences.getString(KEY_PROVIDER, "deepseek"),
                 preferences.getString(KEY_ENDPOINT, DEFAULT_ENDPOINT),
                 preferences.getString(KEY_MODEL, DEFAULT_MODEL),
-                preferences.getString(KEY_MODE, MODE_HYBRID),
+                mode,
                 decrypt(preferences.getString(KEY_API_KEY, "")),
                 preferences.getBoolean(KEY_CONSENT, false));
     }
@@ -112,6 +114,7 @@ final class AiSettingsStore {
                 return result(false, "接口地址必须使用 HTTPS");
             }
             if (model.isEmpty()) return result(false, "请填写模型名称");
+            if (MODE_LOCAL.equals(mode)) mode = MODE_HYBRID;
             if (!MODE_HYBRID.equals(mode)
                     && !MODE_ALWAYS.equals(mode)
                     && !MODE_LOCAL.equals(mode)) {
